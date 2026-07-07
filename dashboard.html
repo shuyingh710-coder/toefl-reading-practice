@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>托福阅读 - 成绩看板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PT Sans", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8; color: #1a1a1a; padding: 24px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 24px; color: #2c3e50; margin-bottom: 4px; }
+  .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
+
+  .stats-bar {
+    display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .stat-card {
+    background: #fff; border-radius: 12px; padding: 16px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05); flex: 1; min-width: 150px;
+    text-align: center;
+  }
+  .stat-value { font-size: 28px; font-weight: 700; color: #3498db; }
+  .stat-label { font-size: 13px; color: #95a5a6; margin-top: 4px; }
+
+  .table-wrap {
+    background: #fff; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: #f0f4f8; text-align: left; padding: 12px 16px;
+    font-size: 13px; color: #5a6a7a; font-weight: 600;
+    border-bottom: 2px solid #dce1e6;
+  }
+  td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
+  tr:hover td { background: #fafbfc; }
+  .rate-high { color: #27ae60; font-weight: 700; }
+  .rate-mid { color: #e67e22; font-weight: 700; }
+  .rate-low { color: #e74c3c; font-weight: 700; }
+
+  .refresh-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .refresh-btn {
+    background: #3498db; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 20px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .refresh-btn:hover { background: #2980b9; }
+  .last-update { color: #95a5a6; font-size: 13px; }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: #95a5a6;
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📊 托福阅读 - 成绩看板</h1>
+  <div class="subtitle">学生练习成绩汇总</div>
+
+  <div class="refresh-bar">
+    <span class="last-update" id="last-update"></span>
+    <button class="refresh-btn" onclick="loadData()">刷新数据</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-total">0</div>
+      <div class="stat-label">提交人数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-avg">-</div>
+      <div class="stat-label">平均正确率</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-best">-</div>
+      <div class="stat-label">最高正确率</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-avg-time">-</div>
+      <div class="stat-label">平均用时</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>学生姓名</th>
+          <th>套题</th>
+          <th>正确率</th>
+          <th>答对/总题</th>
+          <th>用时</th>
+          <th>提交时间</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr><td colspan="6" class="empty-state"><div class="icon">📭</div>暂无数据，学生提交后自动显示</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const BIN_ID = '6a4d3f08da38895dfe3c1bab';
+const ACCESS_KEY = '$2a$10$vflZLkxWC8EGBUUumIpmW.GYy5t4m0jsLIo/tIQqCuLQitGPnoHue';
+
+function rateClass(rateStr) {
+  const v = parseInt(rateStr);
+  if (isNaN(v)) return '';
+  if (v >= 80) return 'rate-high';
+  if (v >= 60) return 'rate-mid';
+  return 'rate-low';
+}
+
+function loadData() {
+  fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+    headers: { 'X-Access-Key': ACCESS_KEY }
+  })
+  .then(r => r.json())
+  .then(data => {
+    const records = (data.record && data.record.records) || [];
+    renderTable(records);
+    document.getElementById('last-update').textContent = 
+      '最后更新：' + new Date().toLocaleString('zh-CN');
+  })
+  .catch(() => {
+    document.getElementById('last-update').textContent = '加载失败，请重试';
+  });
+}
+
+function renderTable(records) {
+  const tbody = document.getElementById('table-body');
+  
+  if (records.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">📭</div>暂无数据</td></tr>';
+    document.getElementById('stat-total').textContent = '0';
+    document.getElementById('stat-avg').textContent = '-';
+    document.getElementById('stat-best').textContent = '-';
+    document.getElementById('stat-avg-time').textContent = '-';
+    return;
+  }
+
+  // 按提交时间倒序
+  records.sort((a, b) => (b.submit_time || '').localeCompare(a.submit_time || ''));
+
+  let html = '';
+  let totalRate = 0, bestRate = 0, totalSec = 0, countSec = 0;
+
+  records.forEach(r => {
+    const rateNum = parseInt(r.total_rate);
+    if (!isNaN(rateNum)) {
+      totalRate += rateNum;
+      if (rateNum > bestRate) bestRate = rateNum;
+    }
+    // 解析用时 mm:ss
+    const durParts = (r.duration || '0:00').split(':');
+    const sec = parseInt(durParts[0]) * 60 + parseInt(durParts[1]);
+    if (!isNaN(sec)) { totalSec += sec; countSec++; }
+
+    html += `<tr>
+      <td><strong>${escHtml(r.student || '未填')}</strong></td>
+      <td>${escHtml(r.set_name || '')}</td>
+      <td class="${rateClass(r.total_rate)}">${escHtml(r.total_rate || '')}</td>
+      <td>${r.correct_q || 0}/${r.total_q || 0}</td>
+      <td>${escHtml(r.duration || '')}</td>
+      <td>${escHtml(r.submit_time || '')}</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
+
+  document.getElementById('stat-total').textContent = records.length;
+  document.getElementById('stat-avg').textContent = records.length > 0 ? Math.round(totalRate / records.length) + '%' : '-';
+  document.getElementById('stat-best').textContent = records.length > 0 ? bestRate + '%' : '-';
+  document.getElementById('stat-avg-time').textContent = countSec > 0 ? formatTime(Math.round(totalSec / countSec)) : '-';
+}
+
+function formatTime(totalSec) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadData();
+</script>
+</body>
+</html>
