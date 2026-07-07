@@ -1,0 +1,14 @@
+*.docx
+*.json
+*.zip
+*.md
+*.py
+*.log
+*.txt
+*.b64*
+collect_log.jsonl
+params_*
+.codebuddy/
+交接包*
+当前状态*
+上下文*
