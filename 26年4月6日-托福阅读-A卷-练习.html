@@ -93,6 +93,8 @@
     background: #d4edda; color: #27ae60; font-weight: 600;
   }
   .letter-box.locked { background: #e8ecf0; color: #27ae60; }
+  .letter-box.correct-letter { background: #d4edda; color: #27ae60; font-weight: 600; }
+  .letter-box.wrong-letter { background: #fdecea; color: #e74c3c; font-weight: 600; }
 
   .reading-group {
     margin-bottom: 24px; padding-bottom: 16px;
@@ -309,13 +311,15 @@ function renderContent() {
     sectionEl.appendChild(h2);
 
     if (sec.type === 'cloze') {
-      sec.passages.forEach(p => {
+      sec.passages.forEach((p, pi) => {
         const hp = document.createElement('h3');
         hp.textContent = p.title;
         hp.style.cssText = 'font-size:15px;color:#34495e;margin:12px 0 6px;';
         sectionEl.appendChild(hp);
         const div = document.createElement('div');
         div.className = 'cloze-passage';
+        div.dataset.section = si;
+        div.dataset.pindex = pi;
         div.innerHTML = renderCloze(p.text, isM2);
         sectionEl.appendChild(div);
       });
@@ -553,13 +557,15 @@ function submitAll() {
   lockPhase('M1');
   lockPhase('M2');
 
-  let total = 0, correct = 0;
+  let readingTotal = 0, readingCorrect = 0;
+  let clozeTotal = 0, clozeCorrect = 0;
 
+  // 1. 评分选择题
   DATA.sections.forEach((sec, si) => {
     if (sec.type !== 'reading-groups') return;
     sec.groups.forEach((grp, gi) => {
       grp.questions.forEach((q, qi) => {
-        total++;
+        readingTotal++;
         const radios = document.querySelectorAll(`input[name="q-${si}-${gi}-${qi}"]`);
         let userChoice = null;
         radios.forEach(r => { if (r.checked) userChoice = r.value; });
@@ -570,7 +576,7 @@ function submitAll() {
           const userLabel = qEl.querySelector(`label:has(input[value="${userChoice}"])`);
           if (userLabel) userLabel.classList.add('user-choice');
           if (q.answer && userChoice === q.answer) {
-            correct++;
+            readingCorrect++;
             qEl.classList.add('correct');
           } else if (q.answer) {
             qEl.classList.add('wrong');
@@ -580,9 +586,38 @@ function submitAll() {
     });
   });
 
+  // 2. 评分填空 — 每篇10个词，每个词全对才得分
+  DATA.sections.forEach((sec, si) => {
+    if (sec.type !== 'cloze') return;
+    sec.passages.forEach((p, pi) => {
+      const passageEl = document.querySelector(`.cloze-passage[data-section="${si}"][data-pindex="${pi}"]`);
+      if (!passageEl) return;
+      const blankGroups = passageEl.querySelectorAll('.blank-group');
+      const answers = p.answers || [];
+      blankGroups.forEach((group, gi) => {
+        clozeTotal++;
+        const boxes = group.querySelectorAll('.letter-box');
+        const userWord = Array.from(boxes).map(b => (b.textContent || '').trim().toLowerCase()).join('');
+        const correctWord = (answers[gi] || '').toLowerCase();
+        let isCorrect = userWord === correctWord && userWord.length > 0;
+        if (isCorrect) clozeCorrect++;
+        boxes.forEach(b => {
+          b.classList.add(isCorrect ? 'correct-letter' : 'wrong-letter');
+        });
+      });
+    });
+  });
+
+  const total = readingTotal + clozeTotal;
+  const correct = readingCorrect + clozeCorrect;
   const rate = total > 0 ? Math.round(correct / total * 100) : 0;
+  const readingRate = readingTotal > 0 ? Math.round(readingCorrect / readingTotal * 100) : 0;
+  const clozeRate = clozeTotal > 0 ? Math.round(clozeCorrect / clozeTotal * 100) : 0;
+
   document.getElementById('result-score').textContent = rate + '%';
-  document.getElementById('result-detail').textContent = `共 ${total} 题，答对 ${correct} 题`;
+  document.getElementById('result-detail').innerHTML =
+    `共 ${total} 题，答对 ${correct} 题<br>` +
+    `<span style="font-size:14px;color:#7f8c8d">阅读 ${readingCorrect}/${readingTotal} (${readingRate}%) | 填空 ${clozeCorrect}/${clozeTotal} (${clozeRate}%)</span>`;
   document.getElementById('result').classList.add('show');
   document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
 
@@ -599,6 +634,10 @@ function submitAll() {
     total_rate: rate + '%',
     total_q: total,
     correct_q: correct,
+    reading_q: readingTotal,
+    reading_correct: readingCorrect,
+    cloze_q: clozeTotal,
+    cloze_correct: clozeCorrect,
     duration: mm + ':' + ss,
     submit_time: new Date().toLocaleString('zh-CN')
   };
