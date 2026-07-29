@@ -97,11 +97,16 @@
   .passage-col img { max-width: 100%; border-radius: 4px; }
   .passage-col mark { background: #fff3cd; padding: 1px 4px; border-radius: 3px; font-weight: 600; color: #856404; }
   .questions-col { padding: 0 4px; }
-  /* 学术阅读：单列大字排版 */
-  .rg-body.single { grid-template-columns: 1fr; }
+  /* 学术阅读：左文右题双栏（左栏加宽，仿真实机考） */
+  .rg-body.ap { grid-template-columns: 58fr 42fr; gap: 18px; }
   .passage-col.academic {
-    position: static; max-height: none; overflow-y: visible;
-    font-size: 16px; line-height: 1.9; padding: 22px 26px;
+    position: sticky; top: 90px;
+    max-height: calc(100vh - 110px); overflow-y: auto;
+    font-size: 16px; line-height: 1.85; padding: 20px 24px;
+  }
+  @media (max-width: 1000px) {
+    .rg-body.ap { grid-template-columns: 1fr; }
+    .passage-col.academic { position: static; max-height: none; }
   }
   .passage-col.academic p { margin-bottom: 14px; }
   .passage-col.academic p:last-child { margin-bottom: 0; }
@@ -399,7 +404,7 @@ function renderContent() {
         }
         const isAcademic = sec.name && sec.name.indexOf('学术') !== -1;
         const bodyWrap = document.createElement('div');
-        bodyWrap.className = 'rg-body' + (isAcademic ? ' single' : '');
+        bodyWrap.className = 'rg-body' + (isAcademic ? ' ap' : '');
         const left = document.createElement('div');
         left.className = 'passage-col' + (isAcademic ? ' academic' : '');
         if (grp.type === 'image' && grp.image) {
